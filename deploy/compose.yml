@@ -1,0 +1,29 @@
+# Office2RAGKnowledge — docker compose
+#
+# **本アプリは常駐サービスではない。** `docker compose up` で待ち受けるのではなく、
+# `docker compose run --rm convert ...` で都度実行する。
+#
+# 使い方:
+#   docker compose run --rm convert convert /work/in -r -o /work/out
+#   docker compose run --rm convert inspect /work/in
+#   docker compose run --rm convert --version
+
+services:
+  convert:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      args:
+        # 出力ファイルの所有者をホスト側の利用者に揃える (Linux/macOS)
+        UID: ${UID:-1000}
+    image: office2ragknowledge:1.0.0
+    volumes:
+      # 入力は読み取り専用でマウントする (変換は入力を書き換えない)
+      - ${INPUT_DIR:-./in}:/work/in:ro
+      - ${OUTPUT_DIR:-./out}:/work/out
+      # 設定ファイルを使う場合はここに置く
+      - ${CONFIG_FILE:-/dev/null}:/work/office2rag.toml:ro
+    working_dir: /work
+    # 変換中に外部通信を行わない (REQ-NF-010) ため、ネットワークを無効化できる。
+    # ビルド時のみネットワークが要る。
+    network_mode: none

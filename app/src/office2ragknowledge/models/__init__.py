@@ -1,0 +1,96 @@
+"""中間表現とオプションの型定義。
+
+このパッケージは **他のどの層にも依存しない** (P003 §2.3)。
+"""
+
+from .document import (
+    Block,
+    Document,
+    DocumentMeta,
+    Footnote,
+    Heading,
+    Image,
+    ListBlock,
+    Paragraph,
+    ShapeText,
+    SlideBreak,
+    Table,
+)
+from .inline import InlineRun, ListItem, ShapeParagraph, TableCell, TableRow, make_run, runs_text
+from .media import ExtractedImage
+from .options import (
+    BatchOptions,
+    Config,
+    ConvertOptions,
+    DocumentFormat,
+    ExcelModes,
+    ExcelOptions,
+    ImageMode,
+    LogOptions,
+    OnExists,
+    OutputMode,
+    ShapeStyle,
+)
+from .result import (
+    BatchResult,
+    ConversionResult,
+    DocumentInfo,
+    FailureInfo,
+    MarkdownOutput,
+    WrittenFiles,
+)
+from .sheet import (
+    Cell,
+    MergedRange,
+    Sheet,
+    SheetRow,
+    TableRegion,
+    col_to_letter,
+    letter_to_col,
+)
+
+__all__ = [
+    "BatchOptions",
+    "BatchResult",
+    "Block",
+    "Cell",
+    "Config",
+    "ConversionResult",
+    "ConvertOptions",
+    "Document",
+    "DocumentFormat",
+    "DocumentInfo",
+    "DocumentMeta",
+    "ExcelModes",
+    "ExcelOptions",
+    "ExtractedImage",
+    "FailureInfo",
+    "Footnote",
+    "Heading",
+    "Image",
+    "ImageMode",
+    "InlineRun",
+    "ListBlock",
+    "ListItem",
+    "LogOptions",
+    "MarkdownOutput",
+    "MergedRange",
+    "OnExists",
+    "OutputMode",
+    "Paragraph",
+    "ShapeParagraph",
+    "ShapeStyle",
+    "ShapeText",
+    "Sheet",
+    "SheetRow",
+    "SlideBreak",
+    "Table",
+    "TableCell",
+    "TableRegion",
+    "TableRow",
+    "WrittenFiles",
+    "col_to_letter",
+    "letter_to_col",
+    "make_run",
+    "runs_text",
+]
