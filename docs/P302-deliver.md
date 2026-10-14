@@ -6,7 +6,7 @@
 | 版 | **1.1.0** (2026-10-15 に依頼者の指示で 1.0.0 から上げた。PDF 対応 (※CR-001〜CR-003) を含む — 5章) |
 | 作成日 | 2026-08-24 / 更新 2026-10-14 (※CR-001・CR-002) / **更新 2026-10-14 (※CR-003 による P302 再実行)** |
 | フェーズ | P302 (納品物作成) |
-| **リリース判定** | **保留** (根拠は11章。要対応1件: 画像抽出の自動テスト。PDF ライブラリのライセンスは ※CR-003 で解消) |
+| **リリース判定** | **OK** (2026-10-15。要対応 0件。根拠は11章) |
 
 ---
 
@@ -128,7 +128,9 @@ Office 文書 (Word / Excel / PowerPoint) と **PDF** (※CR-001・CR-002) を�
 | SPEC-SHAPE-001 | REQ-F-031〜040 | **要求A** オートシェープ内テキスト (3形式共通・SmartArt・グラフ・テキストボックス・章末への追記・OCRしない) | P006 §2.1 F-14 | [T002](./P008-test-direction/T002-shape-text-e2e.md) | `pytest tests/integration/test_shape_text_e2e.py tests/unit/test_shapes.py tests/unit/test_smartart.py tests/unit/test_charts.py -v` | PASS | [A001](./P009-acceptance-direction/A001-core-requirements.md) / [0850](./test-records/20260824-0850-test-record.md) | OK | - |
 | SPEC-PPT-001 | REQ-F-041〜047 | PowerPoint 変換 (スライド単位の章立て・タイトル・本文・ノート・表・非表示スライド) | P006 §2.1 F-15 | [T003](./P008-test-direction/T003-word-powerpoint.md) | `pytest tests/integration/test_word_powerpoint.py tests/unit/test_powerpoint_parser.py -v` | PASS | [0850](./test-records/20260824-0850-test-record.md) | OK | - |
 | SPEC-IMG-001 | REQ-F-048, 049, 070 | 画像のうち**代替テキストの抽出・出力有無の指定 (`--images`)・OCRを行わないこと** (`_assets/` への保存は下の副IDへ分離) | P006 §2.1 F-17 | [T003](./P008-test-direction/T003-word-powerpoint.md) | `pytest tests/unit/test_images.py tests/unit/test_markdown_render.py tests/acceptance/test_core_requirements.py::test_no_ocr -v` | PASS | [0850](./test-records/20260824-0850-test-record.md) | OK | - |
-| **REQ-F-069-保存** | REQ-F-069 | 画像バイナリの `_assets/` への保存と、二重出力での共有 (親 SPEC-IMG-001 から切り出し) | P006 §2.1 F-17 | [T003](./P008-test-direction/T003-word-powerpoint.md) | **自動テストなし** (`writer.py` の行カバレッジ 55%)。P302 で手動確認のみ実施 | 手動確認は PASS | [0855](./test-records/20260824-0855-test-record.md) §3.2 | **NO_TEST_IMPL** | **要対応** — 実際に `_assets/0001.png` が保存されリンクが張られることは手動で確認したが、**自動テストが無く回帰を検出できない**。回帰テストの追加を推奨 |
+| **REQ-F-069-保存** | REQ-F-069 | 画像バイナリの `_assets/` への保存と、二重出力での共有 (親 SPEC-IMG-001 から切り出し) | P006 §2.1 F-17 | [T003](./P008-test-direction/T003-word-powerpoint.md) | **自動テストなし** (`writer.py` の行カバレッジ 55%)。P302 で手動確認のみ実施 | 手動確認は PASS | [0855](./test-records/20260824-0855-test-record.md) §3.2 | **NO_TEST_IMPL** | **受容** ★ACCEPTED★ (2026-10-15。依頼者判断) — 手動では確認済み。自動テストを設けないことを受け入れた ★2 |
+
+★2: **検討**: 画像を含む `.docx` で `--images extract` の保存を確かめる回帰テストの追加を推奨していた。**不採用の理由**: 依頼者の判断 (2026-10-15)「本ツールの目的は RAG (ベクトルDB) 向けにオフィス文書をテキスト化することなので、画像の書き出しは主目的ではない」。画像の書き出しは既定で無効 (`--images none`) の補助機能であり、RAG に取り込まれるテキスト (代替テキストを含む) は既存のテストで検証されている。**残存リスク**: `--images extract` の保存処理 (`writer.py`) に回帰が入っても自動では検出されない。
 | SPEC-CLI-001 | REQ-F-090〜092, 094〜099 | CLI (convert / inspect / --version / --help / 進捗と結果サマリ / --quiet / --verbose / --stdout / 終了コード / TOML設定ファイルと優先順位 / Excelオプション群) | P006 §2.1 F-18〜F-20 | [T004](./P008-test-direction/T004-cli-screens.md) | `pytest tests/integration/test_cli_screens.py tests/unit/test_cli_main.py tests/unit/test_cli_options.py tests/unit/test_config.py -v` | PASS | [0850](./test-records/20260824-0850-test-record.md) / [F001](./P202-fix-plan/fixed/F001-config-precedence.md) / [F002](./P202-fix-plan/fixed/F002-skipped-count.md) | OK | - |
 | SPEC-CLI-002 | REQ-F-093 | 原因と対処が判るエラー (E-001〜E-019 のうち **E-004 以外**) | P006 §2.1 F-16 | [T005](./P008-test-direction/T005-errors-security.md) | `pytest tests/unit/test_errors.py tests/unit/test_convert.py tests/unit/test_detect.py tests/integration/test_cli_screens.py -v` | PASS | [0850](./test-records/20260824-0850-test-record.md) | OK | - |
 | **REQ-F-093-E004** | REQ-F-093 | E-004 (出力先に書き込めない) の実挙動 (親 SPEC-CLI-002 から切り出し) | P006 §2.1 F-16 | [T005](./P008-test-direction/T005-errors-security.md) | 自動テストは環境依存のため `skipif`。P302 で `icacls /deny` を用いて手動検証 | 手動検証は PASS (終了コード2・所定メッセージ・トレースなし) | [0855](./test-records/20260824-0855-test-record.md) §3.1 | NOT_RUN (自動テスト) | **代替検証** — P302 の手動検証 ([0855](./test-records/20260824-0855-test-record.md) §3.1) で仕様どおりの挙動を確認済み。自動テスト側は Windows の権限操作が環境依存のため `skipif` のまま |
@@ -162,7 +164,7 @@ Office 文書 (Word / Excel / PowerPoint) と **PDF** (※CR-001・CR-002) を�
 | 状態 | 件数 | 内訳 |
 | --- | --- | --- |
 | OK | 30 | (※CR-001・002: REQ-NF-017-311・SPEC-DIST-DOCKER が OK、SPEC-PDF-CORE・SPEC-PDF-LAYOUT を追加 / ※CR-003: SPEC-PDF-LICENSE が OK) |
-| NO_TEST_IMPL | 1 | REQ-F-069-保存 |
+| NO_TEST_IMPL | 1 | REQ-F-069-保存 (★ACCEPTED★ で受容) |
 | NOT_RUN | 1 | REQ-F-093-E004 (自動テストのみ。手動は PASS) |
 | BLOCKED | 0 | — |
 
@@ -172,7 +174,8 @@ Office 文書 (Word / Excel / PowerPoint) と **PDF** (※CR-001・CR-002) を�
 | --- | --- | --- |
 | `-` (状態 OK) | 30 | — |
 | 代替検証 | 1 | REQ-F-093-E004 → [0855](./test-records/20260824-0855-test-record.md) §3.1 の手動検証でカバー |
-| **要対応** | **1** | REQ-F-069-保存。※CR-003 で SPEC-PDF-LICENSE を解消 |
+| **受容** (★ACCEPTED★) | 1 | REQ-F-069-保存 (2026-10-15。依頼者判断。上記★2) |
+| **要対応** | **0** | ※CR-003 で SPEC-PDF-LICENSE を解消し、REQ-F-069-保存は受容した |
 | 本番検証・自明 | 0 | — |
 
 ---
@@ -463,14 +466,14 @@ docker compose run --rm convert --version
 
 ## 10. 未整備事項・人間による確認事項
 
-### 10.1 出荷に影響する事項 (※CR-003 改修後: 要対応 1件)
+### 10.1 出荷に影響する事項 (2026-10-15: 要対応 0件)
 
 | # | 事項 | 内容と推奨する対処 |
 | --- | --- | --- |
 | ~~**①**~~ ※CR-001 | ~~**PDF ライブラリ PyMuPDF のライセンス (AGPL-3.0)** (SPEC-PDF-LICENSE)~~ **→ ※CR-003 で解消** (pdfminer.six (MIT) に差し替え。A007 で検査) | 本アプリは MIT だが、PDF の読み取りに使う PyMuPDF は AGPL-3.0 (または Artifex の商用ライセンス) である。wheel は依存として、Docker イメージは同梱物として PyMuPDF を含むため、**配布・ネットワーク越しの提供には AGPL-3.0 の条件がかかる**。依頼者は MIT を保つことを求めており、**Docling・PDF Inspector (および pdfminer.six) による代替を検討した** ([research/pdf-library-alternatives.md](./research/pdf-library-alternatives.md))。結論: Docling・PDF Inspector は代替にならず、**pdfminer.six への差し替え (CR-003 候補) を推奨**。依存は `pdf/backend.py` に閉じ込めてあり、差し替えの影響はこの1モジュールと依存の宣言に限られる (ADR-012)。**対処**: 代替の検討結果にもとづき、(a) MIT 互換のライブラリに差し替える、(b) Artifex の商用ライセンスを取得する、(c) AGPL-3.0 の条件を受け入れて配布する、のいずれかを人間が決める |
 | ~~**①**~~ | ~~**Docker 資産が動作未検証** (SPEC-DIST-DOCKER)~~ **→ ※CR 改修時に解消** | `deploy/Dockerfile` / `deploy/compose.yml` はビルドも起動も行っていない。**対処**: Docker のある環境で `cd deploy && docker compose build` と `docker compose run --rm convert --version` を1度実行する。wheel によるインストール経路自体はクリーン環境で検証済みなので、失敗するとすればベースイメージの選択かマウント設定であり、修正は軽微と見込まれる |
 | ~~**②**~~ | ~~**Python 3.11 での実行が未検証** (REQ-NF-017-311)~~ **→ ※CR 改修時に解消** | 要求は「3.11 以上」だが、確認できたのは 3.13 と 3.14 である。**対処**: 3.11 を導入して `pytest tests -q` を1度実行する。これで `test_runs_on_python_311` のスキップも解消する。あるいは、動作保証を 3.13 以上に狭めるなら**要求の変更**にあたるため CR を起票する (10.3章 CR候補①) |
-| **③** | **画像抽出に自動テストが無い** (REQ-F-069-保存) | 手動では動作を確認したが (§9.1 #8)、自動テストが無いため回帰を検出できない (`writer.py` の行カバレッジ 55%)。**対処**: 画像を1点含む `.docx` を `tests/helpers/make_office.py` で生成し、`--images extract` で `_assets/` にファイルが出ることを検証するテストを1件追加する。P302 は実装・テストの追加を行わないため、本フェーズでは追加していない |
+| ~~**③**~~ | ~~**画像抽出に自動テストが無い** (REQ-F-069-保存)~~ **→ 2026-10-15 に依頼者の判断で受容 (★ACCEPTED★。4章★2。10.4章)。以下は当時の記述:** | 手動では動作を確認したが (§9.1 #8)、自動テストが無いため回帰を検出できない (`writer.py` の行カバレッジ 55%)。**対処**: 画像を1点含む `.docx` を `tests/helpers/make_office.py` で生成し、`--images extract` で `_assets/` にファイルが出ることを検証するテストを1件追加する。P302 は実装・テストの追加を行わないため、本フェーズでは追加していない |
 
 ### 10.2 運用上の申し送り (出荷は妨げない)
 
@@ -499,7 +502,9 @@ docker compose run --rm convert --version
 
 ### 10.4 ★ACCEPTED★ 済みの既知の制約 (判定材料に数えない)
 
-[ArchitectureHandbook.md](./ArchitectureHandbook.md) §9 に記載済みの、**検討のうえ受け入れた**制約である。リリース判定の根拠には数えないが、利用者への申し送りとして再掲する。
+[ArchitectureHandbook.md](./ArchitectureHandbook.md) §9 に記載済みの、**検討のうえ受け入れた**制約である。
+
+* **画像の書き出し (`--images extract`) に自動テストが無い** (2026-10-15。依頼者判断) — 本ツールの目的は RAG 向けのテキスト化であり、画像の書き出しは主目的ではない補助機能 (既定は無効) のため。手動では動作を確認済み (4章★2)。リリース判定の根拠には数えないが、利用者への申し送りとして再掲する。
 
 * **SmartArt の階層構造は復元しない** — テキストは回収するが、図形の親子関係は平坦化する。
 * **グラフはデータ系列名とカテゴリ名のみを拾う** — 数値データ本体は Markdown 化しない。
@@ -511,29 +516,26 @@ docker compose run --rm convert --version
 
 ## 11. リリース判定
 
-### 判定: **保留** (※CR-003 改修後の再判定。2026-10-14)
+### 判定: **OK** (2026-10-15)
 
 ### 根拠
 
-**保留とする理由 (要対応 1件)**:
+* **要対応は 0 件**である (4章の出荷影響の集計)。
+* 機能面は**要求124件すべてが充足**しており ([P004](./P004-traceability-matrix.md))、**テストは 706件 (Python 3.12) / 707件 (Python 3.11) 全件合格・失敗0件**、静的検査 (ruff・mypy strict) はエラー0件である。
+* 配布物 (wheel 1.1.0・Docker イメージ `office2ragknowledge:1.1.0`) はクリーンな環境で動作を確認し、実行時依存はすべて MIT と両立するライセンスである (A007)。
+* 最後まで残っていた REQ-F-069-保存 (画像の書き出しに自動テストが無い) は、**依頼者の判断 (2026-10-15) により受容した** (★ACCEPTED★。4章★2)。本ツールの目的は RAG 向けのテキスト化であり、画像の書き出しは主目的ではない補助機能 (既定は無効) であるため。手動では動作を確認済みである。
 
-| # | 要対応の項目 | なぜ判定を `OK` にできないか |
-| --- | --- | --- |
-| ① | REQ-F-069-保存 — 画像抽出に自動テストが無い | 初回 (2026-08-24) からの継続。動作は手動で確認したが、回帰を検出する手段が無い |
-
-**※CR-003 で解消したもの**: SPEC-PDF-LICENSE (PyMuPDF の AGPL-3.0)。PDF の読み取りを pdfminer.six (MIT) に差し替え、実行時依存 20 件すべてが MIT と両立することを A007 で確認した。
-
-**それでも `NG` ではない理由**:
-
-* 機能面は**要求124件すべてが充足**しており、**テストは 706件 (3.12) / 707件 (3.11) 全件合格・失敗0件**である。
-* CR-001〜CR-003 の受け入れテスト (A006・A007) は全件合格した。
-* 残る1件は「動かない」ではなく「回帰を検出できない」であり、対処 (テストを1件追加する) が具体的に判っている。
-
-**判定を `OK` に変えるために必要なこと**: ① 画像抽出の自動テストを加える。(版数は 2026-10-15 に 1.1.0 へ上げた。)
+**出荷にあたっての申し送り** (判定は妨げない。10.2章): 実際の業務 PDF・Windows 上での PDF 変換の確認を推奨する (⑨⑩)。代替検証の REQ-F-093-E004 は手動で確認済み。
 
 ### 4章の対応表との整合
 
-本章が挙げた保留理由1件は、4章の対応表で出荷影響が `要対応` の1行 (REQ-F-069-保存) と**一致している**。
+4章の出荷影響が `要対応` の行は 0 件であり、本章の判定 (OK) と一致している。`受容` の1行 (REQ-F-069-保存) は、4章★2 と 10.4章に理由と残存リスクを記載した。
+
+<details><summary>※CR-003 改修後 (2026-10-14) の判定 (履歴)</summary>
+
+* 判定: 保留。要対応1件 (REQ-F-069-保存)。2026-10-15 に依頼者の判断で受容し、OK とした。
+
+</details>
 
 <details><summary>※CR-001・CR-002 改修後 (2026-10-14) の判定 (履歴)</summary>
 
