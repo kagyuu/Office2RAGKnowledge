@@ -73,6 +73,8 @@ class DocumentFormat(StrEnum):
     DOCX = "docx"
     XLSX = "xlsx"
     PPTX = "pptx"
+    PDF = "pdf"
+    """※CR-001 により追加。"""
 
 
 @dataclass(frozen=True, slots=True)

@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from .detect import detect_format, is_encrypted_ole
-from .errors import CorruptedFileError, FileTooLargeError
+from .errors import CorruptedFileError, FileTooLargeError, PasswordProtectedError
 from .models import (
     ConvertOptions,
     DocumentFormat,
@@ -28,6 +28,7 @@ from .models import (
 from .ooxml.zip_reader import SafeZipReader
 from .parsers.base import Parser
 from .parsers.excel import ExcelParser
+from .parsers.pdf import PdfParser
 from .parsers.powerpoint import PowerPointParser
 from .parsers.word import WordParser
 from .render import render_document
@@ -44,6 +45,7 @@ _UNIT_LABELS = {
     DocumentFormat.DOCX: "段落",
     DocumentFormat.XLSX: "シート",
     DocumentFormat.PPTX: "スライド",
+    DocumentFormat.PDF: "ページ",
 }
 
 #: 構造解析用の固定時刻。``inspect`` は出力を書かないため値に意味はないが、
@@ -76,8 +78,16 @@ def inspect_file(path: Path | str) -> DocumentInfo:
 
     options = ConvertOptions(front_matter=False)
     try:
-        with SafeZipReader(data) as reader:
-            document = _PARSERS[fmt]().parse(reader, source.name, options, _FIXED_TIME)
+        if fmt is DocumentFormat.PDF:
+            document = PdfParser().parse(data, source.name, options, _FIXED_TIME)
+        else:
+            with SafeZipReader(data) as reader:
+                document = _PARSERS[fmt]().parse(reader, source.name, options, _FIXED_TIME)
+    except PasswordProtectedError:
+        # PDF の暗号化は開いてみないと判らない (※CR-001)
+        return DocumentInfo(
+            path=source, size_bytes=size, status="protected", format=fmt, password_protected=True
+        )
     except (CorruptedFileError, FileTooLargeError):
         return DocumentInfo(path=source, size_bytes=size, status="corrupted", format=fmt)
 
@@ -95,6 +105,13 @@ def inspect_file(path: Path | str) -> DocumentInfo:
         shape_total = sum(max(s.shape_count, len(s.shapes)) for s in sheets)
         region_count: int | None = table_count
         formula_missing: int | None = sum(s.formula_without_cache_count for s in sheets)
+    elif fmt is DocumentFormat.PDF:
+        unit_count = int(document.meta.stats.get("pages", 0))
+        table_count = len(tables)
+        shape_with_text = len(shape_blocks)
+        shape_total = len(shape_blocks)
+        region_count = None
+        formula_missing = None
     else:
         unit_count = len(slides) if fmt is DocumentFormat.PPTX else len(paragraphs)
         table_count = len(tables)
@@ -122,4 +139,5 @@ def inspect_file(path: Path | str) -> DocumentInfo:
         estimated_chars=estimated,
         table_region_count=region_count,
         formula_without_cache_count=formula_missing,
+        pdf_tagged=(document.meta.pdf_structure == "tagged") if fmt is DocumentFormat.PDF else None,
     )

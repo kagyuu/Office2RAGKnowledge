@@ -16,7 +16,7 @@ services:
       args:
         # 出力ファイルの所有者をホスト側の利用者に揃える (Linux/macOS)
         UID: ${UID:-1000}
-    image: office2ragknowledge:1.0.0
+    image: office2ragknowledge:1.1.0
     volumes:
       # 入力は読み取り専用でマウントする (変換は入力を書き換えない)
       - ${INPUT_DIR:-./in}:/work/in:ro

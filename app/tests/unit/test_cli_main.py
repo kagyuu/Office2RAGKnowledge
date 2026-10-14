@@ -26,7 +26,7 @@ def make_inputs(root: Path) -> Path:
 def test_version() -> None:
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
-    assert "office2rag 1.0.0" in result.output
+    assert "office2rag 1.1.0" in result.output
     assert "Python" in result.output
 
 

@@ -39,6 +39,8 @@ def render_front_matter(meta: DocumentMeta, mode: OutputMode | None) -> str:
     lines.append(f"source_file: {_quote(meta.source_file)}")
     lines.append(f"source_path: {_quote(meta.source_path)}")
     lines.append(f"source_format: {_quote(str(meta.source_format))}")
+    if meta.pdf_structure is not None:
+        lines.append(f"pdf_structure: {_quote(meta.pdf_structure)}")
     if mode is not None:
         lines.append(f"output_mode: {_quote(str(mode))}")
     lines.append(f"source_size_bytes: {meta.source_size_bytes}")

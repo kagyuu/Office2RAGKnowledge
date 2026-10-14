@@ -1,12 +1,12 @@
 [project]
 name = "office2ragknowledge"
-version = "1.0.0"
-description = "Office文書 (Word/Excel/PowerPoint) をAIのRAGパイプライン向けMarkdownに変換するツール"
+version = "1.1.0"
+description = "Office文書 (Word/Excel/PowerPoint) と PDF をAIのRAGパイプライン向けMarkdownに変換するツール"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "HONDOH Atsushi" }]
-keywords = ["office", "markdown", "rag", "docx", "xlsx", "pptx"]
+keywords = ["office", "markdown", "rag", "docx", "xlsx", "pptx", "pdf"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -19,10 +19,11 @@ dependencies = [
     "lxml>=5.0",
     "typer>=0.12",
     "rich>=13.0",
+    "pdfminer.six>=20260107",  # ※CR-003 (ADR-015。MIT)。旧: PyMuPDF (AGPL-3.0)
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "pytest-cov", "ruff", "mypy"]
+dev = ["pytest>=8.0", "pytest-cov", "ruff", "mypy", "pypdf[crypto]"]  # pypdf の AES 暗号化 (テスト用 PDF の生成) に cryptography が要る
 
 [project.scripts]
 office2rag = "office2ragknowledge.cli.main:main"

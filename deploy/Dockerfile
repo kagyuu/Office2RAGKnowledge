@@ -5,7 +5,7 @@
 # 使い方を想定している (docker compose run で都度実行する)。
 #
 # 外部バイナリ (LibreOffice・OCRエンジン) を必要としないため、slim ベースで足りる
-# (REQ-NF-019)。
+# (REQ-NF-019)。PDF 用の pdfminer.six も純 Python であり、追加の導入は要らない。
 
 FROM python:3.12-slim AS builder
 
@@ -21,9 +21,11 @@ RUN pip install --no-cache-dir build \
 FROM python:3.12-slim
 
 LABEL org.opencontainers.image.title="Office2RAGKnowledge" \
-      org.opencontainers.image.description="Office文書をRAG向けMarkdownに変換するCLI" \
-      org.opencontainers.image.version="1.0.0" \
+      org.opencontainers.image.description="Office文書とPDFをRAG向けMarkdownに変換するCLI" \
+      org.opencontainers.image.version="1.1.0" \
       org.opencontainers.image.licenses="MIT"
+# ※CR-003: PDF の読み取りは pdfminer.six (MIT) で行う (ADR-015)。実行時依存は MIT と
+# 両立するライセンスに限る (REQ-NF-021。受け入れテスト A007 で検査)。
 
 # 変換処理は外部通信を一切行わない (REQ-NF-010)。
 ENV PYTHONDONTWRITEBYTECODE=1 \

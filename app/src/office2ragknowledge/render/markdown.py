@@ -155,7 +155,8 @@ class MarkdownRenderer:
     @staticmethod
     def _render_image(image: Image, options: ConvertOptions, stem: str) -> str:
         alt = image.alt_text or f"図{image.index}"
-        if options.images is ImageMode.EXTRACT:
+        # media_ref が空の画像はバイナリを持たない (PDF。P002 §5.11)
+        if options.images is ImageMode.EXTRACT and image.media_ref:
             target = f"./{stem}_assets/{image.index:04d}.{image.extension}"
         else:
             target = "画像は出力されていません"
@@ -171,6 +172,19 @@ class MarkdownRenderer:
 
     @staticmethod
     def _build_stats(document: Document, counts: dict[str, int], slides: int) -> dict[str, int]:
+        if document.format is DocumentFormat.PDF:
+            # キー順は P002 §5.3 に固定する。ページ数と補正の件数はパーサが渡す (※CR-001・CR-002)
+            parsed = document.meta.stats
+            return {
+                "pages": int(parsed.get("pages", 0)),
+                "paragraphs": counts["paragraphs"],
+                "headings": counts["headings"],
+                "tables": counts["tables"],
+                "shapes_with_text": counts["shapes"],
+                "images": counts["images"],
+                "headers_footers_removed": int(parsed.get("headers_footers_removed", 0)),
+                "multi_column_pages": int(parsed.get("multi_column_pages", 0)),
+            }
         if document.format is DocumentFormat.PPTX:
             return {
                 "slides": slides,

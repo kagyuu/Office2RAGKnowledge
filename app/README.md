@@ -1,6 +1,6 @@
 # office2ragknowledge
 
-Office 文書 (Word / Excel / PowerPoint) を、AI の RAG パイプライン向けの Markdown に変換します。
+Office 文書 (Word / Excel / PowerPoint) と PDF を、AI の RAG パイプライン向けの Markdown に変換します。
 
 出力の読み手は人間ではなくチャンク分割器と埋め込みモデルです。そのため見た目の再現は行わず、**構造** (見出し階層・表・シート/スライド境界・**図形内の文言**) を保つことを目的としています。
 
@@ -22,6 +22,16 @@ Excel には「正規の表計算として使う」用法と、「セルを方�
 | --- | --- |
 | `{名前}.table.md` | シートごとの章 + Markdown テーブル (表計算モード) |
 | `{名前}.grid.md` | シートごとの章 + セルを連結した本文 (方眼紙モード) |
+
+### PDF にも対応します
+
+* **アクセシビリティ対応 (タグ付き) の PDF** は、論理構造をもとに見出し (`#` `##` `###`)・箇条書き (入れ子)・表に変換します。
+* **論理構造の無い PDF** は、見出しを推定せずにテキストを段落の並びとして出力します。ページ上下に繰り返し現れるヘッダー・フッター (文書名・ページ番号) を除き、2段組み・3段組みは段ごとの読み順に並べ替えます。
+* 図や表の中の文字は、Office の図形テキストと同じ形 (`> **[図形: 図]**`) で出力します。
+* 画像だけのページ (スキャン PDF) からは文字を取り出しません (OCR は行いません。front matter に警告を記録します)。
+* front matter の `pdf_structure` (`tagged` / `untagged`) で、どちらの方法で変換したかが判ります。
+
+> **ライセンスについて**: 本パッケージは MIT です。PDF の読み取りには **pdfminer.six (MIT)** を使っており、実行時依存はすべて MIT と両立するライセンス (MIT・BSD・Apache-2.0 等) です。
 
 ## インストール
 
@@ -54,7 +64,8 @@ office2rag convert ./規程.docx --stdout | your-rag-tool
 | `--excel-modes {both,table,grid}` | `both` | Excel で生成する Markdown の種類 |
 | `--grid-separator TEXT` | なし | 方眼紙モードでセルを連結する際の区切り文字 |
 | `--table-regions / --no-table-regions` | 有効 | 1シート内の複数の表を分割して検出 |
-| `--shapes / --no-shapes` | 有効 | オートシェープ内テキストの抽出 |
+| `--shapes / --no-shapes` | 有効 | オートシェープ内テキストの抽出 (PDF では図の中の文字) |
+| `--headers-footers` | 無効 | Word のヘッダー・フッターを出力 / PDF のヘッダー・フッターを除去しない |
 | `-j, --jobs N` | CPU コア数 | 並列ワーカー数 |
 
 すべてのオプションは `office2rag convert --help` を参照してください。設定ファイル `office2rag.toml` でも指定できます。

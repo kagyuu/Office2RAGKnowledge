@@ -20,6 +20,7 @@ from .models import ConversionResult, ConvertOptions, DocumentFormat
 from .ooxml.zip_reader import SafeZipReader
 from .parsers.base import Parser
 from .parsers.excel import ExcelParser
+from .parsers.pdf import PdfParser
 from .parsers.powerpoint import PowerPointParser
 from .parsers.word import WordParser
 from .render import render_document
@@ -38,9 +39,9 @@ def convert_file(path: Path | str, options: ConvertOptions | None = None) -> Con
 
     Raises:
         UnsupportedFormatError: 対応していない形式 (E-002)
-        PasswordProtectedError: パスワードで保護されている (E-005)
-        CorruptedFileError: ZIP/XML として読めない (E-007)
-        FileTooLargeError: ZIP爆弾検査に抵触 (E-008)
+        PasswordProtectedError: パスワードで保護されている (E-005。PDF の暗号化を含む)
+        CorruptedFileError: ZIP/XML/PDF として読めない (E-007)
+        FileTooLargeError: ZIP爆弾検査、または PDF の展開サイズ検査に抵触 (E-008)
         FileNotFoundError / PermissionError: 入力を読めない
     """
     source = Path(path)
@@ -86,9 +87,13 @@ def _convert(
     converted_at = datetime.now().astimezone()
     sha256 = hashlib.sha256(data).hexdigest()
 
-    with SafeZipReader(data) as reader:
-        parser = _PARSERS[fmt]()
-        document = parser.parse(reader, source_path, options, converted_at)
+    if fmt is DocumentFormat.PDF:
+        # PDF は ZIP ではないため SafeZipReader を通らない (P003 §8.1。※CR-001)
+        document = PdfParser().parse(data, source_path, options, converted_at)
+    else:
+        with SafeZipReader(data) as reader:
+            parser = _PARSERS[fmt]()
+            document = parser.parse(reader, source_path, options, converted_at)
 
     from dataclasses import replace
 

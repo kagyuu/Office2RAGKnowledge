@@ -4,7 +4,7 @@
 
 | 項目 | 内容 |
 | --- | --- |
-| 版 | 1.0 |
+| 版 | 1.2 (※CR-003 により PDF ライブラリを pdfminer.six に差し替え) |
 | 作成日 | 2026-08-24 |
 | インプット | P001〜P010 / `docs/ADR.md` |
 
@@ -12,7 +12,7 @@
 
 ## 1. このアプリは何をするか
 
-Office 文書 (Word / Excel / PowerPoint) を、**RAG パイプラインが取り込むための Markdown** に変換する CLI ツール兼 Python ライブラリ。
+Office 文書 (Word / Excel / PowerPoint) と **PDF** (※CR-001) を、**RAG パイプラインが取り込むための Markdown** に変換する CLI ツール兼 Python ライブラリ。
 
 読み手は人間ではなく**チャンク分割器と埋め込みモデル**である。したがって視覚的忠実性 (フォント・色・配置) を捨て、**構造的忠実性** (見出し階層・表・シート/スライド境界・図形内の文言) を追う。
 
@@ -20,6 +20,8 @@ Office 文書 (Word / Excel / PowerPoint) を、**RAG パイプラインが取�
 
 1. **オートシェープ内テキストを取りこぼさない** — 日本のビジネス文書は要点や注意事項が図形の中に書かれていることが多く、既存ツールの多くはこれを落とす。OCR は使わず、OOXML 上のテキストを回収する。
 2. **Excel の二面性に判別なしで両対応する** — 「表計算」か「方眼紙」かを判別せず、両方の Markdown を常に出力する (ADR-001)。
+
+**PDF** (※CR-001・CR-002): タグ付き PDF は構造ツリーを見出し・リスト・表・図に写し、タグなし PDF は構造を推定せず段落の並びにする (ADR-013)。タグなし PDF ではヘッダー・フッターを除き、段組みの読み順を補正する (ADR-014)。PDF ライブラリは `pdf/backend.py` に閉じ込めてある。**※CR-003 で PyMuPDF (AGPL-3.0) から pdfminer.six (MIT) に差し替えた** (ADR-015。旧 ADR-012 は廃止)。
 
 ---
 
@@ -30,6 +32,8 @@ Office 文書 (Word / Excel / PowerPoint) を、**RAG パイプラインが取�
                                      ↑
                           ShapeTextExtractor (3形式で共有)
 ```
+
+**PDF** (※CR-001) は `detect_format` → `PdfParser` (`pdf/` 基盤。`SafeZipReader` を通らない) → 中間表現 → `MarkdownRenderer` と流れる。
 
 **三層構成** (パーサ / 中間表現 / レンダラ) を貫く。**Excel だけが「1つの中間表現から2つのレンダラが動く」**。これが本アプリの設計上の要である。
 
@@ -134,6 +138,56 @@ Choice優先走査:                 1件 → [['図形の1段落目', '図形の
 
 `ProcessPoolExecutor` のワーカー関数は**モジュールのトップレベル**に定義すること。加えて CLI エントリポイントを `if __name__ == "__main__":` で保護しないと、ワーカーが再帰的に CLI を起動する。
 
+> **※CR-003**: 以下の §4-8〜4-11・4-13・4-14 は **PyMuPDF (MuPDF) 固有の落とし穴であり、pdfminer.six への差し替えで当たらなくなった** (履歴として残す。PDF ライブラリを再び差し替える場合の比較材料になる)。pdfminer.six の落とし穴は §4-15〜4-17。
+
+### 4-8. MuPDF は MCR 辞書形式の構造を返さない (※CR-001、実測。※CR-003 で解消)
+
+構造要素が `<< /Type /MCR /Pg … /MCID n >>` で MCID を参照する PDF では、`TEXT_COLLECT_STRUCTURE` を指定しても構造ブロックが1つも生成されない (整数 MCID + 要素の `/Pg` の形式なら生成される)。被覆率 0 となり、タグなし + 警告として変換される。**テスト用 PDF を作るときは既定の整数形式を使う** (`make_pdf.build_pdf(mcr=False)`)。MCR 形式は既知の挙動を固定するテストにだけ使う。
+
+### 4-9. MuPDF の構造ブロックの `index` は `/K` 配列内の位置 (※CR-001、実測。経路の数え方は ※CR-003 でも同じ規則を使う)
+
+`index` は子要素の通し番号ではなく、親の `/K` 配列内の位置である (MCID の整数も位置を占める)。`/K [1 (Span)]` の Span は `index=1`。属性 (`/Alt`・`/A`) を低水準 API で引くときも同じ規則で辿ること。複数ページにまたがる要素は各ページに同じ経路で現れるため、**経路で同定して統合する** (`pdf/structure.py`)。
+
+### 4-10. MuPDF は警告を標準エラーに直接書く (※CR-001、実測。※CR-003 で該当しなくなった)
+
+`pymupdf.TOOLS.mupdf_display_errors(False)` / `mupdf_display_warnings(False)` を `pdf/backend.py` の読み込み時に呼んでいる。これを外すと、破損 PDF の変換で MuPDF のメッセージが利用者の端末とログに混ざる (REQ-NF-014)。
+
+### 4-11. 途中で切れた PDF は 0 ページとして開ける (※CR-001、実測。0 ページを E-007 とする処理は ※CR-003 でも残す)
+
+MuPDF は破損した PDF を修復して開こうとする。開けても `page_count == 0` になることがあるので、**0 ページは E-007 として扱う**。
+
+### 4-12. 暗号化 PDF の `/P` = 0 で一部のライブラリが落ちる (※CR-001、実測)
+
+pdfminer.six は `/P` が 0 の暗号化 PDF で `struct.error` を出す (仕様上 `/P` が 0 になることは無い)。テスト用に暗号化 PDF を作るときは `/P` を -3904 などの仕様どおりの値にする (`make_pdf.encrypt_pdf`)。PyMuPDF では問題にならないが、ライブラリを差し替えるときの注意点として残す。
+
+### 4-13. MuPDF は構造要素の後の Artifact を直前の要素に含める (※CR-002、実測。※CR-003 で解消し `pdf/content.py` を削除)
+
+内容ストリームで `/P <</MCID 0>> BDC … EMC` の後に `/Artifact BDC (12) Tj EMC` (ページ番号など) が続くと、MuPDF の構造化テキストは `12` を `P` の中に入れる。前置の Artifact は正しく構造の外になる。対策として `pdf/content.py` が内容ストリームを走査し、`get_texttrace()` と出現順に突き合わせて Artifact の文字を除いている。描画モード 2 (塗り + 線) などで1つの演算子が複数の記録になると件数が合わず、特定を諦める (その場合は Artifact が本文に混ざりうる)。
+
+### 4-14. 画像だけの Figure は MuPDF の構造化テキストに現れない (※CR-001、実測。文字を持たない要素に文字の側から辿り着けない点はライブラリによらないため、挿入の処理は ※CR-003 でも残す)
+
+文字を持たない構造要素はブロックが作られない。代替テキストを失わないよう、`pdf/structure.py` が自前で辿った構造ツリーの属性から挿入している。
+
+### 4-15. pdfminer.six は文字を描画順に返す (※CR-003、実測)
+
+構造ツリーの順序とページの描画順が異なるタグ付き PDF では、文字の出現順で構造木を作ると読み順が崩れる。各文字に「その MCID が構造要素の `/K` 配列の何番目か」(`PdfChar.kid_index`) を付け、`pdf/structure.py` で各ノードの子要素とテキストを `/K` の順に並べ直している。
+
+### 4-16. pdfminer.six は `logging` と `warnings` に本文の断片を出しうる (※CR-003)
+
+`pdf/backend.py` の読み込み時に `pdfminer` ロガーへ `NullHandler` を付けて伝播を止め、変換処理を `warnings.catch_warnings()` で囲んでいる。これを外すと、ルートロガーにハンドラが無い環境では Python の既定の出力先 (標準エラー) に警告が出る (REQ-NF-014)。
+
+### 4-17. pdfminer.six は Unicode に対応しない文字を `(cid:N)` で返す (※CR-003)
+
+ToUnicode を持たないフォントの文字は `(cid:123)` のような文字列になる。本文に混ざらないよう U+FFFD に置き換えている。
+
+### 4-18. pdfminer.six の `PDFPageAggregator` を派生させるときは `_stack` を使わない (※CR-003、実測)
+
+基底クラス (`PDFLayoutAnalyzer`) は Form XObject の入れ子を `self._stack` で管理している。派生クラスで同じ名前の属性を作ると、フォームを含むページの処理が壊れる。本アプリはマーク付きコンテンツの入れ子を `_marked` で持つ。mypy strict がこの衝突を型の不一致として検出した。
+
+### 4-19. 整数の MCID は要素の `/Pg` のページを指す (※CR-003、実測)
+
+複数ページにまたがる要素で、別のページの MCID を整数で書くと、仕様上は要素の `/Pg` のページの MCID と解釈される。MuPDF はこれを許容していたが、pdfminer.six (と本アプリの構造ツリーの走査) は仕様どおりに解釈する。テスト用 PDF を作るときは、別ページの MCID を MCR 辞書で書く (`make_pdf.build_pdf` はそうしている)。
+
 ---
 
 ## 5. Excel の二重出力の仕組み
@@ -175,6 +229,8 @@ ExcelTableRenderer   ExcelGridRenderer
 
 ---
 
+---
+
 ## 6. セキュリティの実装
 
 | 対象 | 実装 | 場所 |
@@ -184,6 +240,9 @@ ExcelTableRenderer   ExcelGridRenderer
 | パストラバーサル | 絶対パス・`..`・ドライブレターを含むエントリ名を拒否。`_rels` の Target 正規化後もルート外を拒否 | 同上 |
 | マクロ | `keep_vba=False`。VBA パートを読まない | `parsers/excel.py` |
 | 外部通信 | `no_network=True`, `keep_links=False`。**変換中に一切通信しない** | 各所 |
+| **PDF の展開爆弾** (※CR-001) | Flate ストリームを描画前に上限付きで展開して数える (1ストリーム 256MiB・合計 1GiB)。上限はモジュール定数でテスト時に差し替える | `pdf/safety.py` + `pdf/backend.py` |
+| **PDF の暗号化・JavaScript** (※CR-001、※CR-003 で更新) | `PDFPasswordIncorrect` で E-005。文書の解析とページの内容の解釈のみを行う (JavaScript・アクション・埋め込みファイルを扱わない) | `pdf/backend.py` |
+| **依存のライセンス** (※CR-003) | 実行時依存 (推移的な依存を含む) に AGPL・GPL が無いことを受け入れテスト A007 で常に検査する (REQ-NF-021) | `tests/acceptance/test_dependency_licenses.py` |
 
 **規約**: XML のパースは必ず `xml_utils.parse_xml` を、ZIP は必ず `SafeZipReader` を経由する。各モジュールが `etree.fromstring` や `zipfile.ZipFile` を直接呼ばない。**これを破ると防御が素通りになる。**
 
@@ -201,6 +260,7 @@ ExcelTableRenderer   ExcelGridRenderer
 | 画像の連番 | **表計算モードでの出現順**で固定 |
 | 浮動小数の文字列化 | 表示形式の適用結果を使い、`repr()` に頼らない |
 | 現在時刻 | **`DocumentMeta` の生成箇所1箇所のみ**で取得。パーサ・レンダラの内部で `datetime.now()` を呼ばない |
+| PDF のレイアウト解析 (※CR-002) | 座標を 0.01pt に丸め、並べ替えのキーを (座標, 文字列) の全順序にする。ヘッダー・フッターの判定は出現順の集計 + 集合の所属判定 |
 
 比較時は `--no-front-matter` を使うか、`strip_front_matter()` で front matter を除いてから比較する。
 
@@ -278,12 +338,34 @@ ExcelTableRenderer   ExcelGridRenderer
 **不採用の理由**: 判別を誤ると情報が失われ、しかも失われたことを検知できない。
 **残存リスク**: Excel の出力ファイル数と総文字数が約2倍。`output_mode` による選別と `--excel-modes` による限定で緩和する。
 
+### 9-16. 開発環境を作り直すと見えなかった依存の不足が出る (※CR-001、実測)
+
+スパイクで入れたライブラリ (pdfminer.six) の依存として `cryptography` が開発用の venv に入っていたため、`pypdf` の AES 暗号化に必要な依存の宣言漏れ (`pypdf[crypto]`) が P205 まで見えなかった。P302 で新規 venv を作って初めて検出した。**依存を変えたときは、新規の venv で `pip install -e '.[dev]'` からテストを通すこと。**
+
+### 9-13. PDF ライブラリのライセンスが未決 (※CR-001) → **※CR-003 で解消** (pdfminer.six (MIT) に差し替え。ADR-015)
+
+**状態**: PyMuPDF は AGPL-3.0。本アプリの MIT を保てるかが未決である。依頼者の指示で PyMuPDF のまま実装を完了させ、そのあとで Docling・PDF Inspector・pdfminer.six による代替を検討する。
+**対処**: 依存は `pdf/backend.py` にだけ置いてある。差し替えるときは同じ `PdfSource` を返す別の backend を書けばよく、`pdf/` の他のモジュールと `parsers/pdf.py` は変えなくてよい。
+
+### 9-14. タグなし PDF の表・段組みの限界 ★ACCEPTED★ (※CR-001・CR-002)
+
+**検討**: 罫線から表を復元する案、XY-cut による版面解析の案。
+**不採用の理由**: CR-001 はタグなし PDF を単純なテキストの羅列にすることを求めている。XY-cut は2段組みで左右の段の行を交互に並べることがある (ADR-014)。
+**残存リスク**: 罫線のある表は「図」ブロックに行ごとの文字列として出る。罫線の無い表は段組みとみなされ、列ごとに読まれることがある。縦書きは対象外。
+
+### 9-15. MCR 辞書形式のタグ付き PDF はタグなし扱いになる (※CR-001) → **※CR-003 で解消**
+
+§4-8 を参照。PyMuPDF の制約によるもの。ライブラリの差し替え検討 (9-13) で評価する観点の1つである。
+
 ### 9-11. 性能・メモリの実測値が未取得
 
 **状態**: 目標値 (1ファイル10秒、バッチ劣化1.5倍、50MBで2GB) は設定済みだが、**実測は P103・P201 で行う**。現時点では見積りである。
 **対処**: P103 の計測結果を本節に追記すること。
 
-### 9-12. Python 3.11 での動作が未確認
+### 9-12. Python 3.11 での動作が未確認 → **解消** (2026-10-14)
+
+**解消**: WSL2 上で `uv` により Python 3.11.14 を導入し、新規 venv で全件合格した (693 passed。`docs/test-records/20261014-0233-test-record.md` §4)。以下は当時の記録。
+
 
 **状態**: 3.14.2 では依存6件すべての動作を実測で確認済み。**3.11 は未確認**。
 **対処**: P201 の A004 項目14 で確認する。実行環境が用意できない場合は NOT RUN として記録し、対応範囲の記述を見直す。
@@ -298,7 +380,9 @@ ExcelTableRenderer   ExcelGridRenderer
 | 図形ブロックの体裁を変えたい | `render/shapes.py` + P002 §5.7 | 3形式すべてに波及する。ゴールデンファイルの更新が要る |
 | 方眼紙モードの連結規則を変えたい | `render/excel_grid.py` + P002 §5.6 | **利用者が明示指定した仕様であるため、変更は CR (P901) を要する** |
 | 表領域の検出規則を変えたい | `parsers/excel_regions.py` + P002 §5.4.2 + P003 §7.4 | 境界条件のテストが多数あるため、テストの期待値も見直す |
-| 新しい形式 (例: `.odt`) を追加したい | `detect.py` に判定を追加 → `parsers/` に新パーサ → `render_document` に分岐 | 中間表現は変えずに済むはず。変える必要があれば設計の見直しを疑う |
+| 新しい形式 (例: `.odt`) を追加したい | `detect.py` に判定を追加 → `parsers/` に新パーサ → `render_document` に分岐 | 中間表現は変えずに済むはず。変える必要があれば設計の見直しを疑う。**PDF (※CR-001) は ZIP ではないため `convert.py` に `SafeZipReader` を通らない入口を持つ**。同じ形の形式はこれにならう |
+| PDF ライブラリを差し替えたい (※CR-001。※CR-003 で実施済み) | `pdf/backend.py` のみ (同じ `PdfSource` を返す) | `PdfChar.path` (構造の経路) の規則 (§4-9)、Artifact が `path=None` になること、`kid_index` (§4-15) を満たすこと。`tests/unit/test_pdf_backend.py` がそのまま受け入れ条件になる。**新しいライブラリのライセンスを A007 で確認すること** (REQ-NF-021) |
+| ヘッダー・フッター・段組みの閾値を変えたい (※CR-002) | `pdf/layout.py` の定数 + P003 §7A.7・§7A.9 + ADR-014 | 閾値は ADR-014 の判断の根拠である。変えるなら ADR の更新を伴う |
 | front matter に項目を足したい | `models/document.py` の `DocumentMeta` + `render/frontmatter.py` + P001 §7.1 | **キー順は冪等性のため固定**。末尾に足すこと |
 | 出力ファイル名を変えたい | `render/__init__.py` + `writer.py` + P002 §5.2 | RAG 側の再取り込み判定に影響する。★FIXME★ が P001 §3.2 に残っている |
 

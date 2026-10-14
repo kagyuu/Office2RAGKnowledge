@@ -55,3 +55,16 @@
 | `mypy src` | エラー0件 | エラー0件 |
 
 テスト件数の増加 (+11) は、F001/F002 の回帰テストを追加したことによる。
+
+
+---
+
+## ※CR-001・CR-002 の P201 第1回に対する修正 (2026-10-14)
+
+| ID | 症状 | 原因 | 修正 | 変更ファイル |
+| --- | --- | --- | --- | --- |
+| F004 | T006 期待16 が失敗 (失敗一覧に E-005/E-007 の文字列が無い) | テスト指示が P002 §3.4 (失敗一覧は種別の表示名) と食い違っていた | テスト指示とテストの判定を種別の表示名に合わせた。アプリケーションは変更なし | `docs/P008-test-direction/T006-pdf-conversion.md`、`tests/integration/test_pdf_conversion.py` |
+| F005 | A006 #14 が `FileNotFoundError` | `-o` 指定時は平らに出力される仕様を、テストが階層を保つ前提で参照していた | テストの参照先を出力先の直下に改めた | `tests/acceptance/test_pdf_acceptance.py` |
+| F006 | 品質ゲート (ruff) の不合格 | 新規テストコードを整形・lint にかけていなかった | 整形と長い行の分割 | `tests/acceptance/test_pdf_acceptance.py`、`tests/helpers/pdf_samples.py`、`tests/integration/test_pdf_conversion.py` |
+
+検証: `docs/test-records/20261014-0230-test-record.md` (P205)。**未解決の項目は無い。**

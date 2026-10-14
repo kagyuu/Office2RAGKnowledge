@@ -4,13 +4,13 @@ Office2RAGKnowledge のソースツリーの目次。**主に後続の Executor�
 
 | 項目 | 内容 |
 | --- | --- |
-| 更新 | 2026-08-24 (P104 により実装後の実体へ更新) |
-| 実装ファイル数 | `src/` 42ファイル / `tests/` 34テストファイル |
-| テスト | 448件 (446合格 / 2失敗。`docs/test-records/20260824-0815-test-record.md` 参照) |
+| 更新 | 2026-10-14 (※CR-003 の P104 により PDF ライブラリの差し替えを反映) |
+| 実装ファイル数 | `src/` 51ファイル / `tests/` 47テストファイル (※CR-003: `pdf/content.py`・`test_pdf_content.py` を削除し、`pdf/drawings.py`・`test_pdf_drawings.py` を追加) |
+| テスト | 単体 518件・結合 79件 (すべて合格)。`docs/test-records/20261014-0745-test-record.md` 参照 |
 
 ## 全体構成
 
-- `pyproject.toml` — ビルド構成・依存6件・ruff/mypy/pytest の設定
+- `pyproject.toml` — ビルド構成・依存7件 (※CR-003 で PyMuPDF を pdfminer.six (MIT) に差し替え)・ruff/mypy/pytest の設定
 - `README.md` — アプリの概要と使い方 (配布時の説明書)
 - `.gitignore` — `.venv/` 等の除外
 - `src/office2ragknowledge/` — パッケージ本体
@@ -51,6 +51,18 @@ OOXML を安全に読むための基盤と、3形式で共有する抽出器。
 - `charts.py` — グラフのタイトル・系列名・カテゴリ名の抽出 (REQ-F-047)
 - `images.py` — `ImageCollector`。代替テキストとバイナリの収集 (REQ-F-048/049/069)
 
+### src/office2ragknowledge/pdf/ ※CR-001・CR-002
+
+PDF を安全に読むための基盤。**PDF ライブラリ (※CR-003 で pdfminer.six) を import するのは `backend.py` のみ** (ADR-015)。
+
+- `model.py` — ライブラリ非依存の PDF データ型 `PdfChar` / `PdfPage` / `StructInfo` / `PdfMetadata` / `PdfSource`
+- `backend.py` — `open_pdf` (pdfminer.six)。暗号化・破損・展開サイズ・**構造ツリーの走査 (MCID → 経路・`/K` 内の位置)**・マーク付きコンテンツで文字に MCID と Artifact を付ける・図形・メタデータ・権限。ライブラリのログと警告の抑止 (Handbook §4-16〜4-18)
+- `drawings.py` — 近接するベクター図形の矩形のまとめ (※CR-003。ライブラリ非依存)
+- `safety.py` — Flate ストリームの展開サイズ検査 (REQ-NF-020)。上限はモジュール定数
+- `text.py` — 文字 → 行 → 文字列 (日本語の連結規則)
+- `structure.py` — 被覆率の判定 (50%)・ページをまたぐ構造木の統合・**画像だけの図の挿入**・**`/K` の順序での並べ直し** (※CR-003)
+- `layout.py` — タグなし PDF の行片・図領域・**ヘッダー/フッター除去**・**段組み検出**・段落
+
 ### src/office2ragknowledge/parsers/
 
 形式別のパーサ。中間表現を生成する。**`render/` を知らない**。
@@ -61,6 +73,7 @@ OOXML を安全に読むための基盤と、3形式で共有する抽出器。
 - `excel_regions.py` — `detect_regions`。空行・空列による2段階分割 (要求①)
 - `excel_shapes.py` — シートと drawing の対応付け・アンカーセル参照の算出 (REQ-F-035)
 - `powerpoint.py` — `PowerPointParser`。スライド本体のみ走査 (マスター由来の文言を除外)
+- `pdf.py` — `PdfParser` (※CR-001)。構造木の写像 (見出し・リスト・表・図) / タグなしレイアウト → 中間表現。`SafeZipReader` を通らない入口
 
 ### src/office2ragknowledge/render/
 
@@ -88,9 +101,11 @@ OOXML を安全に読むための基盤と、3形式で共有する抽出器。
 - `conftest.py` — (未作成。各テストが `tmp_path` で自己完結するため不要だった)
 - `helpers/make_office.py` — Office ファイルの生成・ZIP への注入 (drawing / 変更履歴 / キャッシュ値)
 - `helpers/make_malicious.py` — 細工ファイル (ZIP爆弾・XXE・パストラバーサル) の生成
+- `helpers/make_pdf.py` — PDF のバイト列の直接生成 (タグ付き/タグなし/MCR形式/Form XObject/暗号化/展開爆弾。※CR-001・CR-003)
+- `helpers/pdf_samples.py` — 結合・受け入れテストで共有するサンプル PDF (※CR-001・CR-002)
 - `helpers/compare.py` — front matter を除いた Markdown 比較 (冪等性検証)
-- `unit/` — 単体テスト23ファイル・389件
-- `integration/` — 結合テスト4ファイル・59件 (T001〜T004)
+- `unit/` — 単体テスト・518件 (`test_pdf_*.py` 8ファイル。※CR-003 で `test_pdf_content.py` を削除、`test_pdf_drawings.py` を追加)
+- `integration/` — 結合テスト・79件 (T001〜T006。T006 = `test_pdf_conversion.py`)
 - `acceptance/` — 受け入れ・システムテスト (P201 で実装)
 - `fixtures/` — (未使用。すべてコード生成と XML 直接入力で賄えたため)
 
@@ -104,6 +119,8 @@ OOXML を安全に読むための基盤と、3形式で共有する抽出器。
 | 4 | **Rich の `Console(file=sys.stdout)` は import 時のストリームを掴む。** リダイレクト時に出力が捕捉できない | `cli/console.py` |
 | 5 | **`posixpath.basename` は Windows のバックスラッシュを分割しない。** タイトルにフルパスが入る | 3つのパーサ (`Path(filename).stem` に統一) |
 | 6 | openpyxl 自身が「Shapes and drawings will be lost」と警告する。lxml 直接走査の必要性の裏付け | — |
+| 7 | MuPDF の制約 (MCR 形式・後置の Artifact) は ※CR-003 の差し替えで解消。画像だけの図の挿入は残す | `pdf/structure.py` (Handbook §4-14) |
+| 8 | **pdfminer.six は文字を描画順に返す → `/K` の順に並べ直す。`PDFPageAggregator` の `_stack` を上書きしない** (※CR-003) | `pdf/structure.py`・`pdf/backend.py` (Handbook §4-15・§4-18) |
 
 ## 参照
 

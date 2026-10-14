@@ -54,6 +54,13 @@ def print_version(version: str) -> None:
             parts.append(f"{name} {ver}")
         except Exception:  # noqa: BLE001 - 版が取れなくても致命的でない
             parts.append(f"{name} ?")
+    try:
+        # PDF ライブラリの import は pdf/backend.py に限る (ADR-015。※CR-001・CR-003)
+        from ..pdf.backend import library_version
+
+        parts.append(library_version())
+    except Exception:  # noqa: BLE001 - 版が取れなくても致命的でない
+        parts.append("pdfminer.six ?")
     out_console.print(" / ".join(parts))
 
 
@@ -163,7 +170,15 @@ def print_inspect(infos: Sequence[DocumentInfo]) -> None:
         )
     out_console.print(table)
     out_console.print()
-    out_console.print("単位: Excel=シート数 / PowerPoint=スライド数 / Word=段落数")
+    out_console.print("単位: Excel=シート数 / PowerPoint=スライド数 / Word=段落数 / PDF=ページ数")
+    structures = [
+        f"{info.path.name}={'タグ付き' if info.pdf_tagged else 'タグなし'}"
+        for info in infos
+        if info.pdf_tagged is not None
+    ]
+    if structures:
+        # PDF の論理構造の有無 (P002 §3.5。※CR-001)
+        out_console.print("構造: " + " / ".join(structures))
     out_console.print("図形: 図形の総数 (うち括弧内はテキストを持つ図形の数)")
     out_console.print("領域: Excel で検出された表領域の数")
     out_console.print("数式: Excel で計算結果を持たない数式セルの数")
@@ -187,6 +202,7 @@ def print_inspect_json(infos: Sequence[DocumentInfo]) -> None:
             "estimated_chars": info.estimated_chars,
             "table_region_count": info.table_region_count,
             "formula_without_cache_count": info.formula_without_cache_count,
+            "pdf_tagged": info.pdf_tagged,
         }
         for info in infos
     ]

@@ -99,7 +99,8 @@ ERROR_CATALOG: dict[str, tuple[str, str]] = {
     ),
     "E-002": (
         "非対応形式",
-        "Office で開き、.docx / .xlsx / .pptx 形式で保存し直してください。",
+        "Office で開き、.docx / .xlsx / .pptx 形式で保存し直してください"
+        " (PDF はそのまま変換できます)。",
     ),
     "E-003": (
         "読み取り権限不足",
@@ -111,7 +112,7 @@ ERROR_CATALOG: dict[str, tuple[str, str]] = {
     ),
     "E-005": (
         "パスワード保護",
-        "Office で開いてパスワードを解除し、保存し直してください。",
+        "Office または PDF の編集ソフトで開いてパスワードを解除し、保存し直してください。",
     ),
     "E-006": (
         "設定エラー",

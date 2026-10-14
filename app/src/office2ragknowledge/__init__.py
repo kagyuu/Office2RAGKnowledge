@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 logging.getLogger("office2ragknowledge").addHandler(logging.NullHandler())
 

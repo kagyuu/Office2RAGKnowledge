@@ -4,12 +4,28 @@
 
 | 項目 | 内容 |
 | --- | --- |
-| 版 | 1.0 |
+| 版 | 1.2 (※CR-003 の Executor 開始に合わせて更新。2026-10-14) |
 | 作成日 | 2026-08-24 |
 | インプット | `app/INDEX.md` (P020) / `docs/ADR.md` (P021) / `docs/ArchitectureHandbook.md` (P022) |
-| 対象スプリント | U001〜U005 (**すべて未着手**) |
+| 対象スプリント | U001〜U007 (完了済み) / **U008 (未着手。※CR-003)** |
 
 ---
+
+## 0. ※CR-003 の Executor へ (今回の作業)
+
+* **今回実装するのは U008 `pdf-backend-mit` のみ**である。PDF 読み取りライブラリを PyMuPDF (AGPL-3.0) から **pdfminer.six (MIT)** に差し替える (ADR-015)。
+* **外部仕様は変えない。** 既存のテスト (692件) が差し替え後もそのまま合格することが受け入れの基準である。MuPDF 固有の挙動を固定したテスト (MCR 形式が構造を返さない・バージョン表示) だけ期待を改める。
+* 変更は `pdf/backend.py` の書き直しが中心。`pdf/content.py` は不要になるので削除する。近接する図形のまとめ (`pdf/drawings.py`) と、構造木を `/K` の順に並べ直す処理 (`kid_index`) を加える。落とし穴は Handbook §4-15〜4-17。
+* 依存ライセンスの検査 (A007) は P201 で実装・実行する。
+
+## 0-旧. ※CR-001・CR-002 の Executor へ (完了済み)
+
+* **今回実装するのは U006 `pdf-core` → U007 `pdf-layout` のみ**である。U001〜U005 は完了しており、既存のテスト (539件合格) を壊さないこと。
+* PDF の入力を加える。**PyMuPDF を import してよいのは `pdf/backend.py` だけ** (ADR-012)。ライセンスの観点から後で差し替える可能性がある。
+* タグ付き PDF は MuPDF の構造化テキスト (`TEXT_COLLECT_STRUCTURE`) の入れ子をそのまま使い、経路 (`index` の列) で要素を同定してページをまたいで統合する。落とし穴は `docs/ArchitectureHandbook.md` §4-8〜4-12。
+* タグなし PDF は構造を推定しない (ADR-013)。U007 でヘッダー・フッター除去と段組み補正を加える (ADR-014)。
+* テスト用 PDF は `tests/helpers/make_pdf.py` がバイト列を直接組み立てる (P006 §3.4)。暗号化だけは開発時依存の `pypdf` を使う。
+* 開発環境: WSL2 (Linux)。プロジェクト直下の `app/.venv` は Windows 用 (Python 3.14) で使えないため、**別の場所に venv を作る** (`uv venv <dir> --python 3.12` → `VIRTUAL_ENV=<dir> uv pip install -e '.[dev]'`)。
 
 ## 1. 作るもの (30秒で把握する)
 
@@ -57,8 +73,8 @@ Office 文書 (Word/Excel/PowerPoint) を **RAG 向け Markdown** に変換す�
 | パッケージ | `app/src/office2ragknowledge/` |
 | テスト | `app/tests/` |
 | 構成 | `app/pyproject.toml` (PEP 621) |
-| 実行時依存 | `openpyxl` / `python-docx` / `python-pptx` / `lxml` / `typer` / `rich` (**この6件のみ。増やさない**) |
-| 開発時依存 | `pytest` / `pytest-cov` / `ruff` / `mypy` |
+| 実行時依存 | `openpyxl` / `python-docx` / `python-pptx` / `lxml` / `typer` / `rich` / **`pdfminer.six` (※CR-003 で PyMuPDF から差し替え。ADR-015)** (**この7件のみ。増やさない。追加するときはライセンスを確認する (REQ-NF-021)**) |
+| 開発時依存 | `pytest` / `pytest-cov` / `ruff` / `mypy` / `pypdf[crypto]` (※CR-001。テスト用暗号化 PDF の生成のみ。AES に cryptography が要る) |
 | Python | 3.11 以上 (開発環境は 3.14.2。**依存6件すべてが 3.14.2 で動作することを実測済み**) |
 
 **`app/INDEX.md` は既に存在する** (P020 が作ったプレースホルダ)。**削除・上書きしないこと。**
@@ -242,6 +258,9 @@ ExcelTableRenderer   ExcelGridRenderer
 | U003 | `shape-text` | **図形抽出器 (3形式共有) / SmartArt / グラフ / 図形ブロック描画 / Excelへの組み込み** | **高** |
 | U004 | `word-powerpoint` | Wordパーサ / PowerPointパーサ / 共通レンダラ / 画像 | 中 |
 | U005 | `api-cli` | convert/batch/inspect/writer / ログ / CLI全7画面 / 公開面 | 中 |
+| **U006** ※CR-001 | `pdf-core` | `pdf/` 基盤 (model・backend・safety・text・structure・layout 基本部) / `PdfParser` / 形式判定・convert・inspect・レンダラ・CLI の PDF 対応 | **高** |
+| **U007** ※CR-002 | `pdf-layout` | ヘッダー・フッター除去 / 段組みの読み順補正 | 中 |
+| **U008** ※CR-003 | `pdf-backend-mit` | pdfminer.six への差し替え / 図形のまとめ / 構造木の順序 | 中 |
 
 **U002 と U003 が本アプリの中核。** ここに時間をかけてよい。
 

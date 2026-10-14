@@ -136,6 +136,8 @@ class DocumentMeta:
     modified_at: datetime | None = None
     stats: Mapping[str, int] = field(default_factory=dict)
     warnings: tuple[str, ...] = ()
+    pdf_structure: str | None = None
+    """PDF のみ ``"tagged"`` / ``"untagged"`` (P002 §7.3.7。※CR-001)。他の形式は None。"""
 
 
 @dataclass(frozen=True, slots=True)

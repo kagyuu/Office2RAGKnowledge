@@ -125,6 +125,9 @@ class DocumentInfo:
     formula_without_cache_count: int | None = None
     """Excel のみ。他形式では None。"""
 
+    pdf_tagged: bool | None = None
+    """PDF のみ。論理構造にもとづいて変換できるか (※CR-001)。他形式では None。"""
+
 
 @dataclass(frozen=True, slots=True)
 class WrittenFiles:

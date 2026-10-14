@@ -32,7 +32,7 @@ EXCEL_PANEL = "Excel オプション"
 
 app = typer.Typer(
     name="office2rag",
-    help="Office 文書 (Word/Excel/PowerPoint) を RAG 向け Markdown に変換します。",
+    help="Office 文書 (Word/Excel/PowerPoint) と PDF を RAG 向け Markdown に変換します。",
     no_args_is_help=False,
     add_completion=False,
 )
@@ -55,7 +55,7 @@ def root(
         bool, typer.Option("--version", help="バージョンを表示して終了します")
     ] = False,
 ) -> None:
-    """Office 文書を RAG 向け Markdown に変換します。"""
+    """Office 文書と PDF を RAG 向け Markdown に変換します。"""
     _configure_streams()
     if version:
         ui.print_version(__version__)
@@ -65,7 +65,7 @@ def root(
         raise typer.Exit(2)
 
 
-@app.command(help="Office 文書を Markdown に変換します")
+@app.command(help="Office 文書・PDF を Markdown に変換します")
 def convert(  # noqa: PLR0913 - CLI のオプションを受け取る境界
     inputs: Annotated[list[Path], typer.Argument(help="入力ファイルまたはディレクトリ")],
     output: Annotated[
@@ -156,7 +156,10 @@ def convert(  # noqa: PLR0913 - CLI のオプションを受け取る境界
         bool | None,
         typer.Option(
             "--headers-footers/--no-headers-footers",
-            help="Word のヘッダー・フッターを出力します (既定: 出力しない)",
+            help=(
+                "ヘッダー・フッターを出力します。Word: ヘッダー・フッターを出力 / "
+                "PDF: ページ上端・下端の繰り返しテキストを除去しない (既定: 出力しない)"
+            ),
         ),
     ] = None,
     comments: Annotated[
@@ -187,7 +190,7 @@ def convert(  # noqa: PLR0913 - CLI のオプションを受け取る境界
         str | None, typer.Option("--log-format", help="ログ形式 text/json (既定: text)")
     ] = None,
 ) -> None:
-    """Office 文書を Markdown に変換します。"""
+    """Office 文書・PDF を Markdown に変換します。"""
     _configure_streams()
     try:
         cfg, warnings = build_config(
